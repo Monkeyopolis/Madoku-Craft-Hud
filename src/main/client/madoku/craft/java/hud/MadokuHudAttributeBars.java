@@ -37,6 +37,7 @@ public final class MadokuHudAttributeBars {
 	private static final Identifier LUCK_TEXTURE = Identifier.fromNamespaceAndPath("madoku-craft", "textures/icons/hud-luck.png");
 	private static final int ICON_SIZE = 9;
 	private static final int TEXT_SPACING = 2;
+	private static final int STATUS_BAR_ROW_HEIGHT = 10;
 	private static final int FOOD_RIGHT_EDGE = 91;
 	private static final int OXYGEN_RIGHT_EDGE = 91;
 	private static final int VANILLA_SECOND_LEFT_SLOT = 8;
@@ -142,7 +143,8 @@ public final class MadokuHudAttributeBars {
 		}
 		hideVanilla(context, tickCounter, oldElement);
 		int x = context.guiWidth() / 2 - 91;
-		int y = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.ARMOR_BAR);
+		int healthY = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.HEALTH_BAR);
+		int y = healthY - STATUS_BAR_ROW_HEIGHT;
 		context.blitSprite(GUI_PIPELINE, ARMOR_EMPTY_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
 		context.blitSprite(GUI_PIPELINE, pieces < 4 ? ARMOR_HALF_TEXTURE : ARMOR_FULL_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
 		double armor = Math.max(0.0D, player.getAttributeValue(Attributes.ARMOR));

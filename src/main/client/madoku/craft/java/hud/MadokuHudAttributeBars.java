@@ -37,11 +37,13 @@ public final class MadokuHudAttributeBars {
 	private static final Identifier LUCK_TEXTURE = Identifier.fromNamespaceAndPath("madoku-craft", "textures/icons/hud-luck.png");
 	private static final int ICON_SIZE = 9;
 	private static final int TEXT_SPACING = 2;
+	private static final int STATUS_BAR_ROW_HEIGHT = 10;
 	private static final int FOOD_RIGHT_EDGE = 91;
 	private static final int OXYGEN_RIGHT_EDGE = 91;
 	private static final int VANILLA_SECOND_LEFT_SLOT = 8;
 	private static final int OXYGEN_SLOT_SHIFT = 2;
 	private static final String ATTRIBUTES_MOD_ID = "madoku-craft-attributes";
+	private static final String HUD_MOD_ID = "madoku-craft-hud";
 	private static final String UNIFIED_BUNDLE_ID = "madoku-craft";
 	private static final float TEXT_SCALE = 0.8F;
 	private static final int COLOR = 0xFFFFFFFF;
@@ -132,7 +134,7 @@ public final class MadokuHudAttributeBars {
 		Minecraft client = Minecraft.getInstance();
 		LocalPlayer player = client.player;
 		ClientLevel level = client.level;
-		if (!hasPlayer(player, level) || !HudConfigManager.isEnabled("armor")) {
+		if (!hasPlayer(player, level) || !isMadokuHudActive() || !HudConfigManager.isEnabled("armor")) {
 			oldElement.render(context, tickCounter);
 			return;
 		}
@@ -143,11 +145,18 @@ public final class MadokuHudAttributeBars {
 		}
 		hideVanilla(context, tickCounter, oldElement);
 		int x = context.guiWidth() / 2 - 91;
-		int y = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.ARMOR_BAR);
+		int healthY = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.HEALTH_BAR);
+		int y = healthY - STATUS_BAR_ROW_HEIGHT;
 		context.blitSprite(GUI_PIPELINE, ARMOR_EMPTY_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
 		context.blitSprite(GUI_PIPELINE, pieces < 4 ? ARMOR_HALF_TEXTURE : ARMOR_FULL_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
 		double armor = Math.max(0.0D, player.getAttributeValue(Attributes.ARMOR));
 		drawText(context, client, "Armor: " + format(armor), x + ICON_SIZE + TEXT_SPACING, y + 1);
+	}
+
+	private static boolean isMadokuHudActive() {
+		return HudConfigManager.isEnabled()
+			&& (FabricLoader.getInstance().isModLoaded(HUD_MOD_ID)
+				|| FabricLoader.getInstance().isModLoaded(UNIFIED_BUNDLE_ID));
 	}
 
 	private static void renderOxygen(GuiGraphics context, DeltaTracker tickCounter, HudElement oldElement) {

@@ -1,6 +1,6 @@
 package madoku.craft.java.hud;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import net.fabricmc.loader.api.FabricLoader;
 import madoku.craft.mixin.hud.GuiAccessor;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
@@ -38,11 +38,14 @@ public final class MadokuHudAttributeBars {
 	private static final int ICON_SIZE = 9;
 	private static final int TEXT_SPACING = 2;
 	private static final int STATUS_BAR_ROW_HEIGHT = 10;
+	private static final int HEALTH_BAR_Y_OFFSET = 39;
 	private static final int FOOD_RIGHT_EDGE = 91;
 	private static final int OXYGEN_RIGHT_EDGE = 91;
 	private static final int VANILLA_SECOND_LEFT_SLOT = 8;
 	private static final int OXYGEN_SLOT_SHIFT = 2;
+	private static final int LUCK_HORIZONTAL_OFFSET = -1;
 	private static final String ATTRIBUTES_MOD_ID = "madoku-craft-attributes";
+	private static final String UNIFIED_MOD_ID = "madoku-craft";
 	private static final float TEXT_SCALE = 0.8F;
 	private static final int COLOR = 0xFFFFFFFF;
 	private static final long TICKS_PER_SECOND = 20L;
@@ -85,13 +88,14 @@ public final class MadokuHudAttributeBars {
 			return;
 		}
 
-		hideVanilla(context, tickCounter, oldElement);
 		float health = Math.max(0.0F, player.getHealth());
 		float effectiveHealth = Math.max(0.0F, health + player.getAbsorptionAmount());
 		float maxHealth = Math.max(1.0F, player.getMaxHealth());
 		float healthPercent = Math.min(1.0F, health / maxHealth);
 		int x = context.guiWidth() / 2 - 91;
-		int y = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.HEALTH_BAR);
+		// Do not use the vanilla health height here: Minecraft increases it when
+		// max health exceeds 20, even though Madoku renders only one row.
+		int y = context.guiHeight() - HEALTH_BAR_Y_OFFSET;
 		Gui gui = client.gui;
 		int guiTicks = gui.hud.getGuiTicks();
 		if (isHealthBlinking(gui, guiTicks)) y -= 1;
@@ -143,7 +147,7 @@ public final class MadokuHudAttributeBars {
 		}
 		hideVanilla(context, tickCounter, oldElement);
 		int x = context.guiWidth() / 2 - 91;
-		int healthY = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.HEALTH_BAR);
+		int healthY = context.guiHeight() - HEALTH_BAR_Y_OFFSET;
 		int y = healthY - STATUS_BAR_ROW_HEIGHT;
 		context.blitSprite(GUI_PIPELINE, ARMOR_EMPTY_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
 		context.blitSprite(GUI_PIPELINE, pieces < 4 ? ARMOR_HALF_TEXTURE : ARMOR_FULL_TEXTURE, x, y, ICON_SIZE, ICON_SIZE);
@@ -163,7 +167,9 @@ public final class MadokuHudAttributeBars {
 		boolean oxygenEnabled = HudConfigManager.isEnabled("oxygen");
 		// Luck is an Attributes-module UI feature. The other bars remain
 		// vanilla-backed HUD features and must work without that module.
-		boolean luckEnabled = FabricLoader.getInstance().isModLoaded(ATTRIBUTES_MOD_ID)
+		boolean luckModuleLoaded = FabricLoader.getInstance().isModLoaded(ATTRIBUTES_MOD_ID)
+			|| FabricLoader.getInstance().isModLoaded(UNIFIED_MOD_ID);
+		boolean luckEnabled = luckModuleLoaded
 			&& HudConfigManager.isEnabled("luck");
 		int maxAir = Math.max(1, player.getMaxAirSupply());
 		int air = clamp(player.getAirSupply(), 0, maxAir);
@@ -184,7 +190,15 @@ public final class MadokuHudAttributeBars {
 		}
 		int slot = renderOxygen ? VANILLA_SECOND_LEFT_SLOT : Math.max(0, VANILLA_SECOND_LEFT_SLOT - OXYGEN_SLOT_SHIFT);
 		int x = computeRightAlignedX(context, client, text, renderOxygen ? "Oxygen: 30/30" : "Luck: 100%", OXYGEN_RIGHT_EDGE, slot);
+		if (!renderOxygen) {
+			x += LUCK_HORIZONTAL_OFFSET;
+		}
 		int y = context.guiHeight() - HudStatusBarHeightRegistry.getHeight(VanillaHudElements.AIR_BAR);
+		if (!renderOxygen) {
+			// The vanilla air provider is zero-height outside water. Luck still
+			// occupies that row, above the hunger row.
+			y -= STATUS_BAR_ROW_HEIGHT;
+		}
 		if (renderOxygen) {
 			context.blitSprite(GUI_PIPELINE, icon, x, y, ICON_SIZE, ICON_SIZE);
 		} else {

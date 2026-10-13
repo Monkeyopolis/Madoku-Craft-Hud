@@ -1,6 +1,6 @@
 package madoku.craft.mixin.season;
 
-import madoku.craft.java.core.season.ClientSeasonalPrecipitationState;
+import madoku.craft.java.core.season.SeasonClientAPIManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.biome.Biome;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,11 +20,11 @@ public abstract class BiomeSeasonalPrecipitationMixin {
 		int seaLevel,
 		CallbackInfoReturnable<Biome.Precipitation> cir
 	) {
-		if (!ClientSeasonalPrecipitationState.isSynchronized()
-			|| !ClientSeasonalPrecipitationState.isPrecipitating()) {
+		if (!SeasonClientAPIManager.isSynchronized()
+			|| !SeasonClientAPIManager.isPrecipitating()) {
 			return;
 		}
-		Biome.Precipitation precipitation = ClientSeasonalPrecipitationState.resolve((Biome) (Object) this);
+		Biome.Precipitation precipitation = SeasonClientAPIManager.resolve((Biome) (Object) this);
 		cir.setReturnValue(precipitation);
 	}
 }

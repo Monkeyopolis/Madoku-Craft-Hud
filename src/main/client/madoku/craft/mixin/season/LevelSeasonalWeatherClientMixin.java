@@ -1,6 +1,6 @@
 package madoku.craft.mixin.season;
 
-import madoku.craft.java.core.season.ClientSeasonalPrecipitationState;
+import madoku.craft.java.core.season.SeasonClientAPIManager;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,7 +16,7 @@ public abstract class LevelSeasonalWeatherClientMixin {
 		CallbackInfoReturnable<Float> cir
 	) {
 		if ((Object) this instanceof ClientLevel) {
-			cir.setReturnValue(ClientSeasonalPrecipitationState.resolveRainLevel(cir.getReturnValue()));
+			cir.setReturnValue(SeasonClientAPIManager.resolveRainLevel(cir.getReturnValue()));
 		}
 	}
 
@@ -26,7 +26,7 @@ public abstract class LevelSeasonalWeatherClientMixin {
 		CallbackInfoReturnable<Float> cir
 	) {
 		if ((Object) this instanceof ClientLevel) {
-			cir.setReturnValue(ClientSeasonalPrecipitationState.resolveThunderLevel(cir.getReturnValue()));
+			cir.setReturnValue(SeasonClientAPIManager.resolveThunderLevel(cir.getReturnValue()));
 		}
 	}
 }

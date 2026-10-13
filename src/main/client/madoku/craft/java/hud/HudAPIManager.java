@@ -3,7 +3,7 @@ package madoku.craft.java.hud;
 import madoku.craft.java.core.season.SeasonBiomeClimateAPIManager;
 import madoku.craft.java.core.season.SeasonEnvironmentTransitionAPIManager;
 import madoku.craft.java.core.time.TimeAPIManager;
-import madoku.craft.java.core.season.ClientSeasonalPrecipitationState;
+import madoku.craft.java.core.season.SeasonClientAPIManager;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
@@ -57,7 +57,7 @@ public final class HudAPIManager {
 			? new SeasonBiomeClimateAPIManager.Climate(
 				HudPayloadManager.getServerTemperature(),
 				HudPayloadManager.getServerHumidity())
-			: ClientSeasonalPrecipitationState.resolveClimate(level.getBiome(player.blockPosition()).value());
+			: SeasonClientAPIManager.resolveClimate(level.getBiome(player.blockPosition()).value());
 		int line = 0;
 		if (HudConfigManager.isEnabled("day")) drawWorldLine(context, client, "Day", Long.toString(displayDay(day)), line++, COLOR);
 		if (HudConfigManager.isEnabled("time")) drawWorldLine(context, client, "Time", hour + ":" + twoDigits(minute), line++, HudConfigManager.isColored("time") ? timeColor((hour * 60) + minute) : COLOR);

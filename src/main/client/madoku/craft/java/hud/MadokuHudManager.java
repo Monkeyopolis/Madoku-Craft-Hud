@@ -1,5 +1,6 @@
 package madoku.craft.java.hud;
 
+import madoku.craft.java.core.ui.UiLayoutAPIManager;
 import net.minecraft.client.Minecraft;
 
 /** Orchestrates the Madoku HUD subsystems and owns shared HUD helpers. */
@@ -11,6 +12,7 @@ public final class MadokuHudManager {
 
 	public static void initialize() {
 		if (initialized) return;
+		UiLayoutAPIManager.initialize();
 		HudConfigManager.initialize();
 		HudPayloadManager.initialize();
 		HudAPIManager.initialize();

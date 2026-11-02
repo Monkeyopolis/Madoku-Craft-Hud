@@ -4,6 +4,9 @@ import madoku.craft.java.core.season.SeasonBiomeClimateAPIManager;
 import madoku.craft.java.core.season.SeasonEnvironmentTransitionAPIManager;
 import madoku.craft.java.core.time.TimeAPIManager;
 import madoku.craft.java.core.season.SeasonClientAPIManager;
+import madoku.craft.java.core.ui.UiLayoutAPIManager;
+import madoku.craft.java.core.ui.UiLayoutElement;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
@@ -12,32 +15,100 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public final class HudAPIManager {
-	private static final int WORLD_X = 4;
-	private static final int WORLD_Y = 4;
+	private static final Identifier WORLD_HUD_LAYOUT_ID = Identifier.fromNamespaceAndPath("madoku-craft", "world_hud");
+	private static final int DEFAULT_WORLD_X = 4;
+	private static final int DEFAULT_WORLD_Y = 4;
 	private static final float WORLD_HUD_SCALE = 0.8F;
 	private static final int COLOR = 0xFFFFFFFF;
+	private static final WorldHudSnapshot EMPTY_SNAPSHOT = new WorldHudSnapshot(null, null, false, List.of(), 0, 0);
+	private static WorldHudSnapshot worldHudSnapshot = EMPTY_SNAPSHOT;
+	private static boolean initialized;
+	private static final UiLayoutElement WORLD_HUD_LAYOUT = new UiLayoutElement() {
+		@Override public Identifier id() { return WORLD_HUD_LAYOUT_ID; }
+		@Override public int defaultX() { return DEFAULT_WORLD_X; }
+		@Override public int defaultY() { return DEFAULT_WORLD_Y; }
+		@Override public Bounds bounds(Minecraft client, int x, int y) { return worldHudBounds(client, x, y); }
+		@Override public boolean isEnabled(Minecraft client) { return HudConfigManager.isEnabled(); }
+		@Override public boolean isVisible(Minecraft client) { return !visibleWorldLines(client).isEmpty(); }
+		@Override public void renderEditor(GuiGraphicsExtractor context, Minecraft client, int x, int y) {
+			renderWorldHud(context, client, x, y, true);
+		}
+		@Override public String displayName() { return "World HUD"; }
+	};
 
 	private HudAPIManager() {
 	}
 
 	public static void initialize() {
+		if (initialized) return;
+		initialized = true;
+		UiLayoutAPIManager.registerElement(WORLD_HUD_LAYOUT);
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Identifier.fromNamespaceAndPath("madoku-craft", "madoku_hud"), HudAPIManager::renderWorldHud);
+		ClientTickEvents.END_CLIENT_TICK.register(HudAPIManager::refreshWorldHudSnapshot);
 	}
 
 	public static void reset() {
+		worldHudSnapshot = EMPTY_SNAPSHOT;
 	}
 
 	static void renderWorldHud(GuiGraphicsExtractor context, DeltaTracker tickCounter) {
-		if (!HudConfigManager.isEnabled()) return;
 		Minecraft client = Minecraft.getInstance();
+		if (UiLayoutAPIManager.isEditMode()) return;
+		UiLayoutAPIManager.Position position = UiLayoutAPIManager.position(WORLD_HUD_LAYOUT);
+		renderWorldHud(context, client, position.x(), position.y(), false);
+	}
+
+	private static void renderWorldHud(GuiGraphicsExtractor context, Minecraft client, int x, int y, boolean editing) {
+		if (!HudConfigManager.isEnabled() || !hasRenderableWorldHudPlayer(client, editing)) return;
+		WorldHudSnapshot snapshot = getWorldHudSnapshot(client);
+		for (int index = 0; index < snapshot.lines().size(); index++) {
+			WorldLine line = snapshot.lines().get(index);
+			drawWorldLine(context, client, x, y, line, index, snapshot.lineHeight());
+		}
+	}
+
+	private static void drawWorldLine(GuiGraphicsExtractor context, Minecraft client, int originX, int originY, WorldLine line, int lineIndex, int lineHeight) {
+		context.pose().pushMatrix();
+		context.pose().translate(originX, originY + (lineHeight * lineIndex));
+		context.pose().scale(WORLD_HUD_SCALE, WORLD_HUD_SCALE);
+		context.text(client.font, line.prefix(), 0, 0, COLOR, true);
+		context.text(client.font, line.value(), line.prefixWidth(), 0, line.valueColor(), true);
+		context.pose().popMatrix();
+	}
+
+	private static List<WorldLine> visibleWorldLines(Minecraft client) {
+		return getWorldHudSnapshot(client).lines();
+	}
+
+	private static void refreshWorldHudSnapshot(Minecraft client) {
+		worldHudSnapshot = buildWorldHudSnapshot(client);
+	}
+
+	private static WorldHudSnapshot getWorldHudSnapshot(Minecraft client) {
+		if (client == null) return EMPTY_SNAPSHOT;
+		WorldHudSnapshot cached = worldHudSnapshot;
+		boolean enabled = HudConfigManager.isEnabled();
+		if (cached.level() == client.level && cached.player() == client.player && cached.enabled() == enabled) {
+			return cached;
+		}
+		WorldHudSnapshot refreshed = buildWorldHudSnapshot(client);
+		worldHudSnapshot = refreshed;
+		return refreshed;
+	}
+
+	private static WorldHudSnapshot buildWorldHudSnapshot(Minecraft client) {
+		if (client == null) return EMPTY_SNAPSHOT;
 		ClientLevel level = client.level;
 		LocalPlayer player = client.player;
-		if (client == null || client.level == null || client.player == null
-			|| client.gui.hud.isHidden() || client.player.isSpectator()) return;
-
+		boolean enabled = HudConfigManager.isEnabled();
+		if (level == null || player == null || !enabled) {
+			return new WorldHudSnapshot(level, player, enabled, List.of(), 0, 0);
+		}
 		long day;
 		int hour;
 		int minute;
@@ -58,29 +129,58 @@ public final class HudAPIManager {
 				HudPayloadManager.getServerTemperature(),
 				HudPayloadManager.getServerHumidity())
 			: SeasonClientAPIManager.resolveClimate(level.getBiome(player.blockPosition()).value());
-		int line = 0;
-		if (HudConfigManager.isEnabled("day")) drawWorldLine(context, client, "Day", Long.toString(displayDay(day)), line++, COLOR);
-		if (HudConfigManager.isEnabled("time")) drawWorldLine(context, client, "Time", hour + ":" + twoDigits(minute), line++, HudConfigManager.isColored("time") ? timeColor((hour * 60) + minute) : COLOR);
+		List<WorldLine> lines = new ArrayList<>(7);
+		if (HudConfigManager.isEnabled("day")) lines.add(worldLine(client, "Day", Long.toString(displayDay(day)), COLOR));
+		if (HudConfigManager.isEnabled("time")) {
+			lines.add(worldLine(client, "Time", hour + ":" + twoDigits(minute), HudConfigManager.isColored("time") ? timeColor((hour * 60) + minute) : COLOR));
+		}
 		if (HudConfigManager.isEnabled("season") && HudPayloadManager.hasServerSeason()) {
 			String season = getSeasonDisplayText();
-			drawWorldLine(context, client, "Season", season, line++, HudConfigManager.isColored("season") ? seasonColor(season, HudPayloadManager.getServerSeasonDay(), HudPayloadManager.getServerSeasonLengthDays()) : COLOR);
+			lines.add(worldLine(client, "Season", season, HudConfigManager.isColored("season")
+				? seasonColor(season, HudPayloadManager.getServerSeasonDay(), HudPayloadManager.getServerSeasonLengthDays()) : COLOR));
 		}
-		if (HudConfigManager.isEnabled("temperature")) drawWorldLine(context, client, "Temperature", formatClimate(climate.temperature()), line++, HudConfigManager.isColored("temperature") ? temperatureColor(climate.temperature()) : COLOR);
-		if (HudConfigManager.isEnabled("humidity")) drawWorldLine(context, client, "Humidity", formatClimate(climate.humidity()), line++, HudConfigManager.isColored("humidity") ? humidityColor(climate.humidity()) : COLOR);
-		if (HudConfigManager.isEnabled("biome")) drawWorldLine(context, client, "Biome", getBiomeDisplayName(player, level), line++, COLOR);
+		if (HudConfigManager.isEnabled("temperature")) {
+			lines.add(worldLine(client, "Temperature", formatClimate(climate.temperature()), HudConfigManager.isColored("temperature")
+				? temperatureColor(climate.temperature()) : COLOR));
+		}
+		if (HudConfigManager.isEnabled("humidity")) {
+			lines.add(worldLine(client, "Humidity", formatClimate(climate.humidity()), HudConfigManager.isColored("humidity")
+				? humidityColor(climate.humidity()) : COLOR));
+		}
+		if (HudConfigManager.isEnabled("biome")) lines.add(worldLine(client, "Biome", getBiomeDisplayName(player, level), COLOR));
 		if (HudConfigManager.isEnabled("difficulty") && HudPayloadManager.hasServerDifficulty()) {
-			drawWorldLine(context, client, "Difficulty", getDifficultyDisplayText(), line, HudConfigManager.isColored("difficulty") ? difficultyColor(HudPayloadManager.getServerDifficulty()) : COLOR);
+			lines.add(worldLine(client, "Difficulty", getDifficultyDisplayText(), HudConfigManager.isColored("difficulty")
+				? difficultyColor(HudPayloadManager.getServerDifficulty()) : COLOR));
 		}
+		List<WorldLine> immutableLines = List.copyOf(lines);
+		int width = 0;
+		for (WorldLine line : immutableLines) {
+			width = Math.max(width, line.width());
+		}
+		int lineHeight = Math.round((client.font.lineHeight + 4) * WORLD_HUD_SCALE);
+		return new WorldHudSnapshot(level, player, true, immutableLines, width, lineHeight);
 	}
 
-	private static void drawWorldLine(GuiGraphicsExtractor context, Minecraft client, String label, String value, int line, int valueColor) {
-		context.pose().pushMatrix();
-		context.pose().translate(WORLD_X, lineOffset(client, line));
-		context.pose().scale(WORLD_HUD_SCALE, WORLD_HUD_SCALE);
+	private static UiLayoutElement.Bounds worldHudBounds(Minecraft client, int x, int y) {
+		WorldHudSnapshot snapshot = getWorldHudSnapshot(client);
+		if (client == null || snapshot.lines().isEmpty()) return new UiLayoutElement.Bounds(x, y, 0, 0);
+		return new UiLayoutElement.Bounds(
+			x,
+			y,
+			Math.max(1, Math.round(snapshot.width() * WORLD_HUD_SCALE)),
+			Math.max(1, snapshot.lineHeight() * snapshot.lines().size())
+		);
+	}
+
+	private static WorldLine worldLine(Minecraft client, String label, String value, int valueColor) {
 		String prefix = label + ": ";
-		context.text(client.font, prefix, 0, 0, COLOR, true);
-		context.text(client.font, value, client.font.width(prefix), 0, valueColor, true);
-		context.pose().popMatrix();
+		return new WorldLine(prefix, value, valueColor, client.font.width(prefix), client.font.width(prefix + value));
+	}
+
+	private static boolean hasRenderableWorldHudPlayer(Minecraft client, boolean editing) {
+		return client != null && client.level != null && client.player != null
+			&& (editing || (client.gui != null && !client.gui.hud.isHidden()))
+			&& !client.player.isSpectator();
 	}
 
 	private static String formatClimate(double value) {
@@ -169,12 +269,6 @@ public final class HudAPIManager {
 		return (int) Math.round(first + ((second - first) * progress));
 	}
 
-
-	private static int lineOffset(Minecraft client, int lines) {
-		int lineStep = Math.round((client.font.lineHeight + 4) * WORLD_HUD_SCALE);
-		return WORLD_Y + (lineStep * lines);
-	}
-
 	private static String twoDigits(int value) {
 		return value < 10 ? "0" + value : Integer.toString(value);
 	}
@@ -227,5 +321,16 @@ public final class HudAPIManager {
 		String normalized = value.trim().toLowerCase(Locale.ROOT);
 		return Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
 	}
+
+	private record WorldLine(String prefix, String value, int valueColor, int prefixWidth, int width) { }
+
+	private record WorldHudSnapshot(
+		ClientLevel level,
+		LocalPlayer player,
+		boolean enabled,
+		List<WorldLine> lines,
+		int width,
+		int lineHeight
+	) { }
 
 }

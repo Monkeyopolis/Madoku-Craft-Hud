@@ -46,6 +46,8 @@ public final class MadokuHudAttributeBars {
 	private static final int LUCK_HORIZONTAL_OFFSET = -1;
 	private static final String ATTRIBUTES_MOD_ID = "madoku-craft-attributes";
 	private static final String UNIFIED_MOD_ID = "madoku-craft";
+	private static final boolean LUCK_MODULE_LOADED = FabricLoader.getInstance().isModLoaded(ATTRIBUTES_MOD_ID)
+		|| FabricLoader.getInstance().isModLoaded(UNIFIED_MOD_ID);
 	private static final float TEXT_SCALE = 0.8F;
 	private static final int COLOR = 0xFFFFFFFF;
 	private static final long TICKS_PER_SECOND = 20L;
@@ -167,9 +169,7 @@ public final class MadokuHudAttributeBars {
 		boolean oxygenEnabled = HudConfigManager.isEnabled("oxygen");
 		// Luck is an Attributes-module UI feature. The other bars remain
 		// vanilla-backed HUD features and must work without that module.
-		boolean luckModuleLoaded = FabricLoader.getInstance().isModLoaded(ATTRIBUTES_MOD_ID)
-			|| FabricLoader.getInstance().isModLoaded(UNIFIED_MOD_ID);
-		boolean luckEnabled = luckModuleLoaded
+		boolean luckEnabled = LUCK_MODULE_LOADED
 			&& HudConfigManager.isEnabled("luck");
 		int maxAir = Math.max(1, player.getMaxAirSupply());
 		int air = clamp(player.getAirSupply(), 0, maxAir);
@@ -265,9 +265,16 @@ public final class MadokuHudAttributeBars {
 
 	private static String format(double value) {
 		if (!Double.isFinite(value)) return "0";
-		String text = String.format(java.util.Locale.ROOT, "%.3f", value);
-		while (text.endsWith("0")) text = text.substring(0, text.length() - 1);
-		return text.endsWith(".") ? text.substring(0, text.length() - 1) : text;
+		boolean negative = value < 0.0D;
+		long scaled = Math.round(Math.abs(value) * 1000.0D);
+		long whole = scaled / 1000L;
+		int fraction = (int) (scaled % 1000L);
+		if (fraction == 0) return negative ? "-" + whole : Long.toString(whole);
+		String fractionText = Integer.toString(fraction + 1000).substring(1);
+		int end = fractionText.length();
+		while (end > 0 && fractionText.charAt(end - 1) == '0') end--;
+		String text = whole + "." + fractionText.substring(0, end);
+		return negative ? "-" + text : text;
 	}
 
 	private static int clamp(int value, int min, int max) {

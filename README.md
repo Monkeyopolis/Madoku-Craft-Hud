@@ -11,46 +11,16 @@ Additionally, it adds new UI on the top left to display new information.
 
 ## Features:
 
-**Day:**
+**World Hud:**
 
-- Displays the world's in-game day on the top left.
+- It displays the world's information, based on the player's current location.
+- Some text elements are colored by default.
 
-**Time:**
+**Attributes Hud:**
 
-- Displays the world's in-game time on the top left.
-- The text is colored by default.
+- It simplifies the player's information into one icon and text.
 
-**Season:**
+**Customizable placement:**
 
-- Displays the world's in-game season on the top left.
-- The text is colored by default.
-
-**Temperature:**
-
-- Displays the local in-game temperature on the top left.
-- The text is colored by default.
-
-**Humidity:**
-
-- Displays the local in-game humidity on the top left.
-- The text is colored by default.
-
-**Biome:**
-
-- Displays the biome the player is currently in on the top left.
-
-**Armor:**
-
-- Displays one armor icon and the player's armor value.
-
-**Oxygen:**
-
-- Displays one bubble icon and the player's breathing time value.
-
-**Health:**
-
-- Displays one heart icon and the player's health value.
-
-**Hunger:**
-
-- Displays one food icon and the player's hunger value.
+- By holding the keybind Alt, it allows you to change the position of world hud in-game.
+- This keybind is customizable on the controls settings.

@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Locale;
 
 public final class HudAPIManager {
-	private static final Identifier WORLD_HUD_LAYOUT_ID = Identifier.fromNamespaceAndPath("madoku-craft", "world_hud");
+	private static final Identifier WORLD_HUD_LAYOUT_ID = Identifier.fromNamespaceAndPath("madoku-craft", "world-hud");
 	private static final int DEFAULT_WORLD_X = 4;
 	private static final int DEFAULT_WORLD_Y = 4;
 	private static final float WORLD_HUD_SCALE = 0.8F;
@@ -48,7 +48,7 @@ public final class HudAPIManager {
 		if (initialized) return;
 		initialized = true;
 		UiLayoutAPIManager.registerElement(WORLD_HUD_LAYOUT);
-		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Identifier.fromNamespaceAndPath("madoku-craft", "madoku_hud"), HudAPIManager::renderWorldHud);
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Identifier.fromNamespaceAndPath("madoku-craft", "madoku-hud"), HudAPIManager::renderWorldHud);
 		ClientTickEvents.END_CLIENT_TICK.register(HudAPIManager::refreshWorldHudSnapshot);
 	}
 
